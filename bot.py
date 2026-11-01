@@ -11,7 +11,7 @@ else:
 def generate_blog_post_with_gemini():
     """제미나이(Gemini)로 사람 냄새 나는 정부 지원금 글 생성"""
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = """
         너는 매일 야근에 시달리지만, 정부에서 주는 꽁돈과 혜택은 기가 막히게 찾아먹는 30대 깐깐한 K-직장인이야.
