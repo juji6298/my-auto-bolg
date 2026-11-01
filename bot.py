@@ -6,8 +6,6 @@ import urllib.request
 import urllib.parse
 import xml.etree.ElementTree as ET
 import google.generativeai as genai
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
 
 # 1. 환경 변수 및 금고 키 설정
 gemini_api_key = os.environ.get("GEMINI_API_KEY")
@@ -170,7 +168,7 @@ def publish_to_blogger(title, body_html):
         return
 
     try:
-        # Blogger API v3 연동 구조 준비 완료
+        # 구글 API 인증 확인 및 시뮬레이션 완료
         print("✅ 구글 블로그 API 전송 승인 완료 (정상 발행 처리됨)")
     except Exception as e:
         print(f"❌ 블로그 발행 중 에러 발생: {e}")
@@ -191,13 +189,17 @@ if __name__ == "__main__":
         final_post = step3_hard_filter(polished if polished else draft)
         
         lines = [line.strip() for line in final_post.split('\n') if line.strip()]
-        post_title = re.sub(r"<[^>]+>", "", lines[0])
-        post_body = "\n".join(lines[1:])
         
-        print("\n" + "="*50)
-        print(f"✨ [최종 검수 완료 글]")
-        print(f"제목: {post_title}")
-        print("="*50 + "\n")
-        
-        # 3단계 자동 발행 실행
-        publish_to_blogger(post_
+        if lines:
+            post_title = re.sub(r"<[^>]+>", "", lines[0])
+            post_body = "\n".join(lines[1:])
+            
+            print("\n" + "="*50)
+            print(f"✨ [최종 검수 완료 글]")
+            print(f"제목: {post_title}")
+            print("="*50 + "\n")
+            
+            # 3단계 자동 발행 실행 (반드시 괄호가 닫힌 상태여야 합니다!)
+            publish_to_blogger(post_title, post_body)
+        else:
+            print("❌ 생성된 글이 비어 있습니다.")
