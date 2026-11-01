@@ -2,8 +2,9 @@ name: Government Subsidy Auto Bot
 
 on:
   schedule:
-    - cron: '0 0 * * *' 
-  workflow_dispatch: 
+    # 매일 한국 시간 오전 9시(UTC 0시) 자동 실행
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Actions 탭에서 수동 실행 버튼 활성화
 
 jobs:
   run-bot:
@@ -15,16 +16,13 @@ jobs:
       - name: 파이썬 설치
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: 필수 라이브러리 설치
-        run: pip install requests google-generativeai
+        run: pip install google-generativeai requests
 
       - name: 봇 실행하기
-        run: python bot.py
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          WP_URL: ${{ secrets.WP_URL }}
-          WP_USERNAME: ${{ secrets.WP_USERNAME }}
-          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
-          PUBLIC_DATA_API_KEY: ${{ secrets.PUBLIC_DATA_API_KEY }}
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+        run: python bot.py
