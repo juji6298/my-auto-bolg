@@ -6,10 +6,13 @@ import urllib.request
 import urllib.parse
 import xml.etree.ElementTree as ET
 import google.generativeai as genai
+from google.authtransport.requests import Request
+from google.oauth2.credentials import Credentials
 
 # 1. API 키 설정
 gemini_api_key = os.environ.get("GEMINI_API_KEY")
 public_data_key = os.environ.get("DATA_GO_KR_KEY")
+blogger_id = os.environ.get("BLOGGER_ID")
 
 if not gemini_api_key:
     print("경고: GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
@@ -17,7 +20,7 @@ else:
     genai.configure(api_key=gemini_api_key)
 
 def get_working_model_name():
-    """현재 API 키로 사용 가능한 최적의 제미나이 모델 자동 탐색"""
+    """사용 가능한 최적의 제미나이 모델 자동 탐색"""
     candidate_models = []
     try:
         for m in genai.list_models():
@@ -100,7 +103,7 @@ def fetch_from_korea_kr_official():
         return None
 
 def call_gemini(prompt, temperature=0.2):
-    """모델 자동 순회 호출 함수"""
+    """제미나이 호출 함수"""
     models = get_working_model_name()
     config = {"temperature": temperature}
     for model_name in models:
@@ -114,20 +117,20 @@ def call_gemini(prompt, temperature=0.2):
     return None
 
 def step1_generate_draft(source_facts):
-    """[1차 생성] 오차 0% 팩트 기반 초안 작성"""
+    """[1차 생성] 팩트 기반 초안"""
     prompt = f"""
-    아래 [정부 공식 원본 데이터]의 사실만을 100% 그대로 반영해서, 30대 직장인 블로거 말투로 정부 지원금 안내 초안을 작성해줘.
-    원본에 없는 숫자나 조건은 절대 추측해서 적지 마.
+    아래 [정부 공식 원본 데이터]의 사실만을 100% 반영해서, 30대 직장인 블로거 말투로 정부 지원금 안내 초안을 작성해줘.
+    원본에 없는 숫자는 절대 추측해서 적지 마.
 
     {source_facts}
     """
     return call_gemini(prompt, temperature=0.1)
 
 def step2_proofread_and_humanize(source_facts, draft_text):
-    """[2차 검수] 팩트 대조 + 오탈자 교정 + AI 탐지 회피 리라이팅"""
+    """[2차 검수] 오탈자 교정 + AI 탐지 회피(Humanizing)"""
     prompt = f"""
-    너는 10년 차 블로그 전문 편집장이자 AI 텍스트 탐지 회피 전문가야.
-    아래 [1차 초안]을 [정부 공식 원본 데이터]와 대조하여 검수하고, 포털 사이트의 AI 탐지기에 절대 걸리지 않도록 완벽한 인간 문체로 교정해줘.
+    너는 10년 차 블로그 편집장이자 AI 텍스트 탐지 회피 전문가야.
+    아래 [1차 초안]을 [정부 공식 원본 데이터]와 대조하여 검수하고, 포털 사이트의 AI 탐지기에 걸리지 않도록 인간 문체로 교정해줘.
 
     [정부 공식 원본 데이터]
     {source_facts}
@@ -135,56 +138,56 @@ def step2_proofread_and_humanize(source_facts, draft_text):
     [1차 초안]
     {draft_text}
 
-    [🛠️ 필수 교정 및 AI 탐지 회피 지침]
-    1. 팩트 완전 대조: 초안의 금액, 조건, 신청기한이 원본 데이터와 조금이라도 다르면 즉시 원본 기준으로 고쳐.
-    2. 맞춤법 및 오탈자 완벽 교정: 어색한 조사, 띄어쓰기 오류, 오타, 번역투 문장을 자연스러운 한국어 구어체로 다듬어.
-    3. 문장 길이 불규칙화 (Burstiness 적용): AI 탐지기를 피하기 위해 아주 짧은 문장("솔직히 이거 안 챙기면 손해죠.", "생각보다 간단하더라고요.")과 2~3줄짜리 설명 문장을 불규칙하게 섞어서 리듬감을 만들어.
-    4. AI 상투어 완전 삭제: "결론적으로", "요약하자면", "지금까지 ~를 알아보았습니다", "첫째, 둘째", "도움이 되셨기를 바랍니다" 같은 표현은 흔적도 없이 지워.
-    5. 마크다운 기호 금지 & HTML 서식 적용: 별표(**)나 샵(###) 같은 마크다운 기호를 쓰지 말고, 티스토리에 바로 붙여넣을 수 있게 소제목은 <h3>, 강조할 핵심 조건은 <b>, 문단 나눔은 <p>와 <br> 태그로 깔끔하게 감싸줘.
-    6. 출력 형식:
-       첫 번째 줄에는 태그 없이 '블로그 제목'만 딱 한 줄 적고,
-       두 번째 줄부터 HTML 서식이 적용된 본문을 출력해.
+    [🛠️ 필수 교정 지침]
+    1. 팩트 대조: 초안의 금액, 조건이 원본과 다르면 즉시 원본 기준으로 수정.
+    2. 맞춤법 및 오탈자 완벽 교정.
+    3. 문장 길이 불규칙화(Burstiness): 짧은 추임새 문장과 긴 설명을 섞어서 기계적 느낌을 없앨 것.
+    4. AI 상투어 완전 삭제 ("결론적으로", "요약하자면", "도움이 되셨기를" 등 금지).
+    5. HTML 서식 적용: 마크다운 기호(**, ###) 쓰지 말고, 소제목은 <h3>, 강조는 <b>, 문단 나눔은 <p>와 <br> 태그 사용할 것.
+    6. 출력 형식: 첫 번째 줄에는 태그 없이 '블로그 제목'만 딱 적고, 두 번째 줄부터 HTML 본문을 출력할 것.
     """
     return call_gemini(prompt, temperature=0.35)
 
 def step3_hard_filter(text):
-    """[3차 파이썬 필터] AI 잔여 기호 및 금지어 강제 제거"""
-    # 마크다운 코드블록(```html 등) 및 잔여 별표(**) 제거
+    """[3차 필터] 잔여 기호 및 금지어 제거"""
     text = re.sub(r"```[a-zA-Z]*", "", text)
     text = text.replace("```", "").replace("**", "")
-    
-    # AI 단골 마무리 멘트 강제 삭제
-    banned_phrases = [
-        "결론적으로", "요약하자면", "도움이 되셨기를 바랍니다", 
-        "도움이 되셨길 바랍니다", "지금까지 알아보았습니다"
-    ]
+    banned_phrases = ["결론적으로", "요약하자면", "도움이 되셨기를 바랍니다", "도움이 되셨길 바랍니다", "지금까지 알아보았습니다"]
     for phrase in banned_phrases:
         text = text.replace(phrase, "")
-        
     return text.strip()
 
+def publish_to_google_blogger(title, body_html):
+    """구글 블로거(Blogger) API를 통한 완전 자동 발행 (예시 및 구조 세팅)"""
+    print(f"🚀 [자동 발행 대기중] 블로그 ID({blogger_id})로 포스팅 전송 시뮬레이션 중...")
+    print(f"📌 제목: {title}")
+    print(f"📝 본문 길이: {len(body_html)} 자")
+    # 추후 구글 블로거 API OAuth2 토큰 연동 시 이곳에서 requests.post로 실제 발행 완료
+    print("✅ 구글 블로그 자동 발행 프로세스 점검 완료!")
+
 if __name__ == "__main__":
-    print("📡 [1단계] 정부 공식 데이터를 수집합니다...")
+    print("📡 [1단계] 정부 공식 지원금 데이터를 수집합니다...")
     official_facts = fetch_from_data_go_kr() or fetch_from_korea_kr_official()
     
     if not official_facts:
         print("❌ 공식 데이터를 가져오지 못해 중단합니다.")
         exit(1)
 
-    print("✍️ [2단계] 1차 팩트 기반 초안을 작성합니다...")
+    print("✍️ [2단계] 초안 작성 및 AI 탐지 회피 교정을 진행합니다...")
     draft = step1_generate_draft(official_facts)
     
     if draft:
-        print("🔍 [3단계] 자체 오탈자 교정 및 AI 탐지 회피(Humanizing) 검수를 진행합니다...")
         polished = step2_proofread_and_humanize(official_facts, draft)
         final_post = step3_hard_filter(polished if polished else draft)
         
         lines = [line.strip() for line in final_post.split('\n') if line.strip()]
-        post_title = re.sub(r"<[^>]+>", "", lines[0]) # 제목에서 태그 제거
+        post_title = re.sub(r"<[^>]+>", "", lines[0])
         post_body = "\n".join(lines[1:])
         
         print("\n" + "="*50)
-        print(f"📌 [최종 검수 완료 제목]: {post_title}")
-        print("="*50)
-        print(post_body)
+        print(f"✨ [최종 검수 완료 글]")
+        print(f"제목: {post_title}")
         print("="*50 + "\n")
+        
+        # 3단계 자동 발행 실행
+        publish_to_google_blogger(post_title, post_body)
