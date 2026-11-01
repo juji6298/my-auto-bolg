@@ -11,6 +11,7 @@ else:
 def generate_blog_post_with_gemini():
     """제미나이(Gemini)로 사람 냄새 나는 정부 지원금 글 생성"""
     try:
+        # 구글 AI 스튜디오 표준 안정 모델
         model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = """
