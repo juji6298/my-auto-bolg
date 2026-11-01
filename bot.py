@@ -1,42 +1,124 @@
 import os
+import json
+import random
+import urllib.request
+import urllib.parse
+import xml.etree.ElementTree as ET
 import google.generativeai as genai
 
-# 제미나이 API 키 설정
-api_key = os.environ.get("GEMINI_API_KEY")
-if not api_key:
+# 1. API 키 설정
+gemini_api_key = os.environ.get("GEMINI_API_KEY")
+public_data_key = os.environ.get("DATA_GO_KR_KEY")  # 공공데이터포털(data.go.kr) 인증키
+
+if not gemini_api_key:
     print("경고: GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
 else:
-    genai.configure(api_key=api_key)
+    genai.configure(api_key=gemini_api_key)
 
-def generate_blog_post_with_gemini():
-    """내 API 키에서 사용 가능한 모델을 자동 조회하여 정부 지원금 글 생성"""
-    prompt = """
-    너는 매일 야근에 시달리지만, 정부에서 주는 꽁돈과 혜택은 기가 막히게 찾아먹는 30대 깐깐한 K-직장인이야.
-    마치 친한 회사 동기한테 "야, 너 이거 신청했어? 당장 해!"라며 메신저로 몰래 꿀팁을 털어놓듯이, 아주 솔직하고 사람 냄새 찐하게 나는 티스토리 블로그 포스팅을 작성해줘.
+def fetch_from_data_go_kr():
+    """[1순위] 공공데이터포털(data.go.kr) 행정안전부 보조금24 공식 오픈 API에서 팩트 수집"""
+    if not public_data_key:
+        print("ℹ️ DATA_GO_KR_KEY가 아직 등록되지 않아 정부 공식 정책브리핑 데이터로 대체합니다.")
+        return None
 
-    [🚨 AI 티 절대 안 나는 초특급 작성 규칙]
-    1. AI 단골 멘트 절대 금지: "결론적으로", "요약하자면", "~에 대해 알아보았습니다", "도움이 되셨길 바랍니다", "그렇다면 어떻게 신청할까요?" 같은 뻔한 로봇 말투는 무조건 빼. 
-    2. 현실적인 빡침(?)과 공감 한 스푼: 정부 지원금 특유의 짜증나는 점(서류 준비 귀찮음, 조건 빡셈, 사이트 버벅거림 등)을 한두 번 슬쩍 투덜거려줘. ("아니, 조건 좀 넉넉하게 해주지 솔직히 너무 깐깐한 거 아니냐고요ㅋㅋ", "인증서 때문에 화딱지 날 뻔했지만 꽁돈이니 참았습니다")
-    3. 찐텐 구어체: "~합니다", "~해요" 대신 "~더라고요", "~인 거 있죠?", "~하는 게 맘 편해요", "이건 무조건 챙기세요", "안 받으면 손해잖아요" 같은 생생한 실전 말투를 써줘.
-    4. 기계적인 서식 파괴: '첫째, 둘째, 셋째' 금지. 대신 "가장 중요한 건 이거예요", "이거 놓치면 진짜 억울합니다" 식으로 대화하듯 흐름을 이어가.
-    5. 모바일 최적화 띄어쓰기: 사람들이 폰으로 많이 보니까 2~3문장마다 줄바꿈을 시원시원하게 해줘. 가독성 좋게 진짜 중요한 조건이나 금액은 **굵게** 강조도 해주고.
-    6. 마지막 인사 생략: 억지로 마무리하는 인사말 없이, 꿀팁 하나 툭 던져주고 쿨하게 끝내.
-    7. 첫 줄: 검색 클릭률 미치게 만드는, 어그로성 짙지만 내용이 알찬 '진짜 사람 냄새나는 블로그 제목' 딱 하나만 써줘.
+    try:
+        # 최근 등록/수정된 현금·보조금 혜택 목록 조회
+        encoded_key = urllib.parse.quote(public_data_key) if "%" not in public_data_key else public_data_key
+        page = random.randint(1, 5)
+        url = f"https://api.odcloud.kr/api/gov24/v3/serviceList?page={page}&perPage=10&serviceKey={encoded_key}"
+        
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=15) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            
+        items = data.get("data", [])
+        if not items:
+            return None
+            
+        # 내용이 충실한 지원금 정책 1건 선택
+        valid_items = [item for item in items if item.get("지원내용") and item.get("지원대상")]
+        chosen = random.choice(valid_items if valid_items else items)
+        
+        fact_sheet = f"""
+[대한민국 행정안전부 보조금24 공식 데이터]
+- 정책(서비스)명: {chosen.get('서비스명', '정보 없음')}
+- 소관기관명: {chosen.get('소관기관명', '정보 없음')}
+- 지원유형: {chosen.get('지원유형', '정보 없음')}
+- 서비스목적(요약): {chosen.get('서비스목적요약', '정보 없음')}
+- 지원대상: {chosen.get('지원대상', '정보 없음')}
+- 선정기준: {chosen.get('선정기준', '별도 명시 없음 (공고문 확인 필요)')}
+- 지원내용(금액/혜택): {chosen.get('지원내용', '정보 없음')}
+- 신청방법: {chosen.get('신청방법', '정보 없음')}
+- 신청기한: {chosen.get('신청기한', '정보 없음')}
+- 문의처: {chosen.get('문의처', '정부24 확인')}
+- 정부24 공식 상세안내 링크: {chosen.get('상세조회URL', 'https://www.gov.kr')}
+"""
+        return fact_sheet.strip()
+    except Exception as e:
+        print(f"⚠️ 공공데이터포털 API 호출 중 에러 발생: {e}")
+        return None
+
+def fetch_from_korea_kr_official():
+    """[2순위 백업] 대한민국 정부 공식 정책브리핑(korea.kr) RSS에서 정책 원문 수집"""
+    url = "https://www.korea.kr/rss/policy.xml"
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=15) as response:
+            xml_data = response.read()
+            
+        root = ET.fromstring(xml_data)
+        items = root.findall('./channel/item')[:10]
+        if not items:
+            return None
+            
+        chosen = random.choice(items)
+        title = chosen.find('title').text if chosen.find('title') is not None else ""
+        desc = chosen.find('description').text if chosen.find('description') is not None else ""
+        link = chosen.find('link').text if chosen.find('link') is not None else ""
+        pub_date = chosen.find('pubDate').text if chosen.find('pubDate') is not None else ""
+        
+        fact_sheet = f"""
+[대한민국 정부 공식 정책브리핑 원문 데이터]
+- 공식 발표 제목: {title}
+- 발표 일시: {pub_date}
+- 정부 발표 원문 내용: {desc}
+- 공식 원문 링크: {link}
+"""
+        return fact_sheet.strip()
+    except Exception as e:
+        print(f"⚠️ 정부 정책브리핑 수집 중 에러 발생: {e}")
+        return None
+
+def generate_blog_post_with_gemini(source_facts):
+    """공식 정부 팩트 시트만을 기반으로 오차 없이 사람 냄새 나는 블로그 글 생성"""
+    prompt = f"""
+    너는 정부에서 발표하는 공식 지원금과 정책을 한 치의 오차도 없이 정확하게 파헤쳐서 알려주는 30대 깐깐한 K-직장인 블로거야.
+    반드시 아래 제공된 [정부 공식 원본 데이터]에 적힌 사실만을 바탕으로, 친한 회사 동기에게 꿀팁을 떠먹여 주듯 생생한 티스토리 블로그 포스팅을 작성해줘.
+
+    {source_facts}
+
+    [🚨 100% 팩트 고정(Fact-Lock) 절대 규칙 - 위반 시 실패 처리]
+    1. 외부 지식 및 추측 절대 금지: 지원 금액, 나이, 소득 기준, 신청 기한, 신청 방법은 **오직 위 [정부 공식 원본 데이터]에 적힌 내용만** 그대로 사용해. 원본 데이터에 없는 숫자를 임의로 지어내거나 추측해서 적으면 절대 안 돼.
+    2. 정보 부족 시 솔직한 안내: 만약 원본 데이터에 세부 서류나 구체적인 액수가 '공고문 참조' 등으로 되어 있다면, 억지로 지어내지 말고 "세부 서류나 지자체별 예산은 아래 공식 링크(정부24)에서 본인 조건으로 꼭 조회해 보세요!"라고 정확히 안내해.
+    3. 공식 확인 링크 제공: 글 마지막 부분에 독자가 바로 확인할 수 있도록 원본 데이터의 '공식 상세안내 링크' 주소를 넣어줘.
+
+    [🗣️ AI 티 절대 안 나는 문체 규칙]
+    1. AI 상투어 금지: "결론적으로", "요약하자면", "~에 대해 알아보았습니다", "도움이 되셨길 바랍니다" 같은 로봇 말투는 절대 쓰지 마.
+    2. 직장인 현실 말투: "~더라고요", "~인 거 있죠?", "~하는 게 속 편해요", "안 챙기면 진짜 손해잖아요" 같은 자연스러운 구어체를 쓰고, 조건이나 신청 절차가 까다로운 점은 현실적으로 한두 번 투덜거려줘.
+    3. 모바일 가독성: 2~3문장마다 줄바꿈을 시원하게 해주고, 핵심 지원 대상·혜택·기한은 **굵게** 강조해줘.
+    4. 첫 줄 제목: 첫 번째 줄에는 클릭하고 싶어지는 매력적인 블로그 제목 딱 하나만 적어줘.
     """
 
-    # 1. 구글 서버에서 현재 API 키로 사용 가능한 텍스트 생성 모델 목록 자동 조회
+    # 사용 가능한 모델 자동 탐색
     candidate_models = []
     try:
         for m in genai.list_models():
             if "generateContent" in m.supported_generation_methods and "gemini" in m.name:
-                # 이미지/오디오 전용 등 특수 모델 제외
                 if not any(skip in m.name.lower() for skip in ["vision", "imagen", "veo", "tts", "audio", "embedding", "image"]):
                     candidate_models.append(m.name)
-        print(f"📋 서버에서 확인된 사용 가능 모델 목록: {candidate_models}")
     except Exception as e:
         print(f"모델 목록 조회 중 에러: {e}")
 
-    # 서버 안내 모델 및 최신 모델 우선 시도 목록 구성
     priority_models = [
         "models/gemini-3.8-flash",
         "models/gemini-3.0-flash",
@@ -48,11 +130,13 @@ def generate_blog_post_with_gemini():
             candidate_models.remove(pm)
         candidate_models.insert(0, pm)
 
-    # 2. 사용 가능한 모델을 순서대로 시도하여 성공할 때까지 실행
+    # 창의성(temperature)을 0.1로 극단적으로 낮춰 사실 왜곡 차단
+    generation_config = {"temperature": 0.1}
+
     for model_name in candidate_models:
         try:
-            print(f"🔄 [{model_name}] 모델로 글 생성 시도 중...")
-            model = genai.GenerativeModel(model_name)
+            print(f"🔄 [{model_name}] 모델로 팩트 고정 글 생성 시도 중...")
+            model = genai.GenerativeModel(model_name, generation_config=generation_config)
             response = model.generate_content(prompt)
             if response and response.text:
                 print(f"✅ [{model_name}] 모델로 글 생성 성공!")
@@ -61,17 +145,31 @@ def generate_blog_post_with_gemini():
             print(f"⚠️ [{model_name}] 건너뜀 (사유: {e})")
             continue
 
-    print("❌ 모든 모델 시도에 실패했습니다.")
     return None
 
 if __name__ == "__main__":
-    print("🤖 [티스토리 맞춤형] 제미나이가 사람 냄새 나는 지원금 글을 작성합니다...")
+    print("📡 [1단계] 정부 공식 지원금 데이터를 수집합니다...")
     
-    generated_content = generate_blog_post_with_gemini()
-    
-    if generated_content:
+    # 1순위: 공공데이터포털 보조금24 API 시도 -> 없으면 2순위: 정부 공식 정책브리핑 RSS 수집
+    official_facts = fetch_from_data_go_kr()
+    if not official_facts:
+        official_facts = fetch_from_korea_kr_official()
+        
+    if official_facts:
         print("\n" + "="*50)
-        print("✨ [생성된 블로그 포스팅 미리보기]")
+        print("📋 [확보된 정부 공식 원본 데이터 (100% 팩트 기준)]")
+        print("="*50)
+        print(official_facts)
         print("="*50 + "\n")
-        print(generated_content)
-        print("\n" + "="*50)
+        
+        print("🤖 [2단계] 확보된 공식 팩트를 바탕으로 블로그 글을 작성합니다...")
+        generated_content = generate_blog_post_with_gemini(official_facts)
+        
+        if generated_content:
+            print("\n" + "="*50)
+            print("✨ [완성된 블로그 포스팅 본문]")
+            print("="*50 + "\n")
+            print(generated_content)
+            print("\n" + "="*50)
+    else:
+        print("❌ 공식 데이터를 가져오지 못해 글 생성을 중단합니다. (오류 정보 생성 원천 차단)")
