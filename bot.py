@@ -17,13 +17,26 @@ client_id = os.environ.get("GOOGLE_CLIENT_ID")
 client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
 refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN")
 
+HISTORY_FILE = "posted_history.txt"
+
 if not gemini_api_key:
     print("경고: GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
 else:
     genai.configure(api_key=gemini_api_key)
 
+def load_history():
+    """기존에 발행했던 지원금 목록 불러오기"""
+    if os.path.exists(HISTORY_FILE):
+        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+            return set(line.strip() for line in f if line.strip())
+    return set()
+
+def save_history(service_name):
+    """새로 발행한 지원금 이름을 기록 파일에 추가"""
+    with open(HISTORY_FILE, "a", encoding="utf-8") as f:
+        f.write(service_name + "\n")
+
 def get_working_model_name():
-    """사용 가능한 제미나이 모델 자동 탐색"""
     candidate_models = []
     try:
         for m in genai.list_models():
@@ -44,13 +57,13 @@ def get_working_model_name():
         candidate_models.insert(0, pm)
     return candidate_models
 
-def fetch_from_data_go_kr():
-    """공공데이터포털 보조금24 공식 오픈 API에서 팩트 수집"""
+def fetch_from_data_go_kr(history_set):
+    """공공데이터 팩트 수집 (중복 검사 포함)"""
     if not public_data_key:
-        return None
+        return None, None
     try:
         encoded_key = urllib.parse.quote(public_data_key) if "%" not in public_data_key else public_data_key
-        page = random.randint(1, 10)
+        page = random.randint(1, 15)
         url = f"https://api.odcloud.kr/api/gov24/v3/serviceList?page={page}&perPage=15&serviceKey={encoded_key}"
         
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -59,14 +72,24 @@ def fetch_from_data_go_kr():
             
         items = data.get("data", [])
         if not items:
-            return None
+            return None, None
             
-        valid_items = [item for item in items if item.get("지원내용") and item.get("지원대상")]
-        chosen = random.choice(valid_items if valid_items else items)
+        # 지원내용과 대상이 있으면서, 기존에 발행하지 않은(history_set에 없는) 항목만 필터링
+        valid_items = [
+            item for item in items 
+            if item.get("지원내용") and item.get("지원대상") and item.get("서비스명", "") not in history_set
+        ]
         
-        return f"""
+        if not valid_items:
+            print(f"⚠️ {page}페이지의 모든 데이터가 이미 발행되었거나 조건에 맞지 않습니다.")
+            return None, None
+            
+        chosen = random.choice(valid_items)
+        service_name = chosen.get('서비스명', '정보 없음')
+        
+        fact_sheet = f"""
 [대한민국 행정안전부 보조금24 공식 데이터]
-- 서비스명: {chosen.get('서비스명', '정보 없음')}
+- 서비스명: {service_name}
 - 소관기관명: {chosen.get('소관기관명', '정보 없음')}
 - 지원유형: {chosen.get('지원유형', '정보 없음')}
 - 서비스목적요약: {chosen.get('서비스목적요약', '정보 없음')}
@@ -78,12 +101,12 @@ def fetch_from_data_go_kr():
 - 문의처: {chosen.get('문의처', '정부24 확인')}
 - 정부24 공식 링크: {chosen.get('상세조회URL', 'https://www.gov.kr')}
 """.strip()
+        return fact_sheet, service_name
     except Exception as e:
         print(f"공공데이터 API 호출 에러: {e}")
-        return None
+        return None, None
 
 def fetch_from_korea_kr_official():
-    """정부 정책브리핑 RSS 수집"""
     url = "https://www.korea.kr/rss/policy.xml"
     try:
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -92,18 +115,19 @@ def fetch_from_korea_kr_official():
         root = ET.fromstring(xml_data)
         items = root.findall('./channel/item')[:10]
         if not items:
-            return None
+            return None, None
         chosen = random.choice(items)
         title = chosen.find('title').text if chosen.find('title') is not None else ""
         desc = chosen.find('description').text if chosen.find('description') is not None else ""
         link = chosen.find('link').text if chosen.find('link') is not None else ""
-        return f"[정부 정책브리핑]\n- 제목: {title}\n- 내용: {desc}\n- 링크: {link}"
+        
+        fact = f"[정부 정책브리핑]\n- 제목: {title}\n- 내용: {desc}\n- 링크: {link}"
+        return fact, title
     except Exception as e:
         print(f"정책브리핑 수집 에러: {e}")
-        return None
+        return None, None
 
 def call_gemini(prompt, temperature=0.2):
-    """제미나이 호출 함수"""
     models = get_working_model_name()
     config = {"temperature": temperature}
     for model_name in models:
@@ -117,7 +141,6 @@ def call_gemini(prompt, temperature=0.2):
     return None
 
 def step1_generate_draft(source_facts):
-    """1차 팩트 기반 초안 작성 ('퇴근길 픽' 페르소나 적용)"""
     prompt = f"""
     아래 [정부 공식 데이터]를 바탕으로 '퇴근길에 3분 만에 읽는 알짜 정부 혜택' 콘셉트의 블로그 글 초안을 작성해줘.
     피곤한 퇴근길 지하철에서 스마트폰으로 슥슥 읽기 편하게 군더더기 없이 친절하고 직관적인 직장인 문체로 써.
@@ -129,7 +152,6 @@ def step1_generate_draft(source_facts):
     return call_gemini(prompt, temperature=0.1)
 
 def step2_proofread_and_humanize(source_facts, draft_text):
-    """2차 AI 티 제거 및 HTML 서식 입히기"""
     prompt = f"""
     너는 블로그 콘텐츠 에디터이자 AI 텍스트 탐지 회피 전문가야.
     아래 [1차 초안]을 [정부 공식 데이터]와 철저히 대조해 사실관계를 바로잡고, 포털 검색엔진에서 저품질로 분류되지 않도록 자연스러운 사람의 글 형태로 교정해줘.
@@ -151,7 +173,6 @@ def step2_proofread_and_humanize(source_facts, draft_text):
     return call_gemini(prompt, temperature=0.35)
 
 def step3_hard_filter(text):
-    """3차 잔여 마크다운 및 금지 어구 완벽 제거"""
     text = re.sub(r"```[a-zA-Z]*", "", text)
     text = text.replace("```", "").replace("**", "")
     banned_phrases = ["결론적으로", "요약하자면", "도움이 되셨기를 바랍니다", "도움이 되셨길 바랍니다", "지금까지 알아보았습니다"]
@@ -160,13 +181,11 @@ def step3_hard_filter(text):
     return text.strip()
 
 def publish_to_blogger(title, body_html):
-    """구글 Blogger API v3 다이렉트 전송"""
     print(f"🚀 [afterwork-pick] 블로그(ID: {blogger_id})에 포스팅 발행 시작...")
-    print(f"📌 제목: {title}")
     
     if not all([client_id, client_secret, blogger_id, refresh_token]):
         print("❌ 필수 인증 키 또는 블로그 ID가 누락되었습니다.")
-        return
+        return False
 
     try:
         credentials = Credentials(
@@ -186,17 +205,24 @@ def publish_to_blogger(title, body_html):
         request = service.posts().insert(blogId=blogger_id, body=post_data, isDraft=False)
         response = request.execute()
         print(f"🎉 [afterwork-pick] 블로그 발행 완료! 글 URL: {response.get('url')}")
+        return True
     except Exception as e:
         print(f"❌ 블로그 API 발행 실패: {e}")
+        return False
 
 if __name__ == "__main__":
-    print("📡 [1단계] 보조금24 공식 데이터를 수집합니다...")
-    official_facts = fetch_from_data_go_kr() or fetch_from_korea_kr_official()
+    print("📡 [1단계] 기존 발행 기록을 확인하고 중복 없는 데이터를 수집합니다...")
+    history = load_history()
     
+    official_facts, service_title = fetch_from_data_go_kr(history)
     if not official_facts:
-        print("❌ 공식 데이터를 불러오지 못해 중단합니다.")
+        official_facts, service_title = fetch_from_korea_kr_official()
+        
+    if not official_facts:
+        print("❌ 오늘 올릴 새로운 공식 데이터를 불러오지 못해 중단합니다.")
         exit(1)
 
+    print(f"✅ 이번에 발행할 정책: {service_title}")
     print("✍️ [2단계] '퇴근길 픽' 스타일 초안 및 AI 탐지 회피 교정을 진행합니다...")
     draft = step1_generate_draft(official_facts)
     
@@ -213,7 +239,10 @@ if __name__ == "__main__":
             print(f"✨ [발행 예정 제목]: {post_title}")
             print("="*50 + "\n")
             
-            # 실전 발행 실행
-            publish_to_blogger(post_title, post_body)
+            # 3단계 발행 진행 후 성공하면 히스토리에 저장
+            is_success = publish_to_blogger(post_title, post_body)
+            if is_success and service_title:
+                save_history(service_title)
+                print(f"💾 발행 내역 저장 완료 ({service_title})")
         else:
             print("❌ 생성된 본문이 없습니다.")
