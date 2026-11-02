@@ -6,6 +6,8 @@ import urllib.request
 import urllib.parse
 import xml.etree.ElementTree as ET
 import google.generativeai as genai
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
 
 # 1. 환경 변수 및 금고 키 설정
 gemini_api_key = os.environ.get("GEMINI_API_KEY")
@@ -13,6 +15,7 @@ public_data_key = os.environ.get("DATA_GO_KR_KEY")
 blogger_id = os.environ.get("BLOGGER_ID")
 client_id = os.environ.get("GOOGLE_CLIENT_ID")
 client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
+refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN")
 
 if not gemini_api_key:
     print("경고: GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
@@ -158,18 +161,33 @@ def step3_hard_filter(text):
     return text.strip()
 
 def publish_to_blogger(title, body_html):
-    """구글 블로그 API를 통한 실시간 자동 발행 파이프라인"""
+    """구글 블로그 API(Blogger v3)를 통한 실제 포스팅 자동 발행"""
     print(f"🚀 구글 블로그(ID: {blogger_id})에 포스팅 자동 발행을 시도합니다...")
     print(f"📌 발행될 제목: {title}")
     print(f"📝 본문 글자수: {len(body_html)} 자")
     
-    if not client_id or not client_secret or not blogger_id:
-        print("⚠️ 구글 클라이언트 ID 또는 블로그 ID가 설정되지 않아 발행 단계에서 시뮬레이션으로 대체됩니다.")
+    if not all([client_id, client_secret, blogger_id, refresh_token]):
+        print("❌ 필수 환경변수(Client ID, Secret, Blogger ID, Refresh Token) 중 일부가 누락되었습니다.")
         return
 
     try:
-        # 구글 API 인증 확인 및 시뮬레이션 완료
-        print("✅ 구글 블로그 API 전송 승인 완료 (정상 발행 처리됨)")
+        credentials = Credentials(
+            token=None,
+            refresh_token=refresh_token,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=client_id,
+            client_secret=client_secret
+        )
+        service = build('blogger', 'v3', credentials=credentials)
+        
+        post_data = {
+            'title': title,
+            'content': body_html
+        }
+        
+        request = service.posts().insert(blogId=blogger_id, body=post_data, isDraft=False)
+        response = request.execute()
+        print(f"🎉 구글 블로그 실제 발행 대성공! 발행된 글 주소: {response.get('url')}")
     except Exception as e:
         print(f"❌ 블로그 발행 중 에러 발생: {e}")
 
@@ -199,7 +217,7 @@ if __name__ == "__main__":
             print(f"제목: {post_title}")
             print("="*50 + "\n")
             
-            # 3단계 자동 발행 실행 (반드시 괄호가 닫힌 상태여야 합니다!)
+            # 3단계 실제 자동 발행 실행
             publish_to_blogger(post_title, post_body)
         else:
             print("❌ 생성된 글이 비어 있습니다.")
