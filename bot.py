@@ -477,7 +477,7 @@ def publish_to_blogger(title, body_html):
         credentials = Credentials(
             token=None,
             refresh_token=refresh_token,
-            token_uri="[https://oauth2.googleapis.com/token](https://oauth2.googleapis.com/token)",  # 👈 마크다운 기호 제거 완료!
+            token_uri="https://oauth2.googleapis.com/token",  # 👈 마크다운 기호 제거 완료!
             client_id=client_id,
             client_secret=client_secret
         )
