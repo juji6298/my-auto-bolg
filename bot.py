@@ -74,7 +74,6 @@ def fetch_from_data_go_kr(history_set):
         if not items:
             return None, None
             
-        # 지원내용과 대상이 있으면서, 기존에 발행하지 않은(history_set에 없는) 항목만 필터링
         valid_items = [
             item for item in items 
             if item.get("지원내용") and item.get("지원대상") and item.get("서비스명", "") not in history_set
@@ -199,7 +198,8 @@ def publish_to_blogger(title, body_html):
         
         post_data = {
             'title': title,
-            'content': body_html
+            'content': body_html,
+            'labels': ['[혜택] 숨은 지원금']  # 👈 라벨 이름 반영 완료
         }
         
         request = service.posts().insert(blogId=blogger_id, body=post_data, isDraft=False)
@@ -239,7 +239,6 @@ if __name__ == "__main__":
             print(f"✨ [발행 예정 제목]: {post_title}")
             print("="*50 + "\n")
             
-            # 3단계 발행 진행 후 성공하면 히스토리에 저장
             is_success = publish_to_blogger(post_title, post_body)
             if is_success and service_title:
                 save_history(service_title)
