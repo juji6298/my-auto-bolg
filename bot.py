@@ -477,13 +477,12 @@ def publish_to_blogger(title, body_html):
         credentials = Credentials(
             token=None,
             refresh_token=refresh_token,
-            token_uri="[https://oauth2.googleapis.com/token](https://oauth2.googleapis.com/token)",
+            token_uri="[https://oauth2.googleapis.com/token](https://oauth2.googleapis.com/token)",  # 👈 마크다운 기호 제거 완료!
             client_id=client_id,
             client_secret=client_secret
         )
         service = build('blogger', 'v3', credentials=credentials)
         
-        # 🏷️ 지정하신 라벨 '[혜택] 숨은 지원금' 자동 장착 설정
         post_data = {
             'title': title,
             'content': body_html,
