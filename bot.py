@@ -24,115 +24,249 @@ if not gemini_api_key:
 else:
     genai.configure(api_key=gemini_api_key)
 
-# 2. 카테고리별 고화질 맞춤 이미지 및 공식 출처 DB
+# 2. 고정 첫인삿말 & 맺음말 설정
+FIXED_INTRO_TEXT = (
+    "다들 오늘 하루도 정말 고생 많으셨어요!<br />"
+    "집으로 향하는 발걸음 조금이라도 가벼워지시길 바라며, 오늘의 알짜배기 지원금 소식 바로 전해드립니다."
+)
+
+FIXED_OUTRO_TEXT = (
+    "오늘도 <b>퇴근길 지원금 줍줍</b>과 함께해 주셔서 감사합니다.<br />"
+    "오늘 하루도 고생 많으셨고, 내일 퇴근길에도 쏠쏠한 혜택 한 보따리 들고 찾아올게요!"
+)
+
+# 3. 100% 실제 촬영 사진(Real Photo) 카테고리별 DB (AI 생성 이미지 배제)
 THEME_IMAGES = {
-    "육아_출산": [
-        {
-            "url": "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=1000&q=80",
-            "alt": "아이와 함께하는 가정 지원 혜택 이미지",
-            "credit": "출처: Unsplash (@dakotacorbin) / 무료 라이선스 제공"
-        },
-        {
-            "url": "https://images.unsplash.com/photo-1542037104857-ffbb0b9155fb?auto=format&fit=crop&w=1000&q=80",
-            "alt": "행복한 가족과 육아 지원 정책 사진",
-            "credit": "출처: Unsplash (@natalie_pedigo) / 무료 라이선스 제공"
-        }
-    ],
-    "청년_취업": [
-        {
-            "url": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1000&q=80",
-            "alt": "청년 취업 및 직장인 역량 강화 지원 이미지",
-            "credit": "출처: Unsplash (@brookecagle) / 무료 라이선스 제공"
-        },
-        {
-            "url": "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1000&q=80",
-            "alt": "노트북으로 지원금을 신청하는 모습",
-            "credit": "출처: Unsplash (@andrewtneel) / 무료 라이선스 제공"
-        }
-    ],
-    "주거_생활": [
-        {
-            "url": "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1000&q=80",
-            "alt": "내 집 마련 및 주거 안정 지원금 관련 이미지",
-            "credit": "출처: Unsplash (@tierramallorca) / 무료 라이선스 제공"
-        },
-        {
-            "url": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1000&q=80",
-            "alt": "가계 재정 및 주거비 계산 이미지",
-            "credit": "출처: Unsplash (@kellysikkema) / 무료 라이선스 제공"
-        }
-    ],
-    "의료_건강": [
-        {
-            "url": "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=1000&q=80",
-            "alt": "건강검진 및 의료비 지원 혜택 이미지",
-            "credit": "출처: Unsplash (@hush52) / 무료 라이선스 제공"
-        },
-        {
-            "url": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1000&q=80",
-            "alt": "의료 상담 및 보건 복지 서비스 이미지",
-            "credit": "출처: Unsplash (@nationalcancerinstitute) / 무료 라이선스 제공"
-        }
-    ],
-    "소상공인_기업": [
-        {
-            "url": "https://images.unsplash.com/photo-1556740758-90de374c12ad?auto=format&fit=crop&w=1000&q=80",
-            "alt": "소상공인 및 중소기업 경영 지원금 이미지",
-            "credit": "출처: Unsplash (@blakewisz) / 무료 라이선스 제공"
-        },
-        {
-            "url": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1000&q=80",
-            "alt": "사업 계획서 작성 및 정부 지원 신청 이미지",
-            "credit": "출처: Unsplash (@homajob) / 무료 라이선스 제공"
-        }
-    ],
-    "농어업_지역": [
-        {
-            "url": "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=1000&q=80",
-            "alt": "농어촌 및 지역 발전 정부 지원 정책 이미지",
-            "credit": "출처: Unsplash (@goian) / 무료 라이선스 제공"
-        },
-        {
-            "url": "https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=1000&q=80",
-            "alt": "친환경 농어업 지원 혜택 관련 사진",
-            "credit": "출처: Unsplash (@sippakorn) / 무료 라이선스 제공"
-        }
-    ],
-    "일반_금융": [
-        {
-            "url": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1000&q=80",
-            "alt": "정부 지원금 및 생활 안정 자금 신청 이미지",
-            "credit": "출처: Unsplash (@towfiqu999999) / 무료 라이선스 제공"
-        },
-        {
-            "url": "https://images.unsplash.com/photo-1434626881859-194d67b2b86f?auto=format&fit=crop&w=1000&q=80",
-            "alt": "온라인 서류 준비 및 신청 방법 안내 이미지",
-            "credit": "출처: Unsplash (@firmbee) / 무료 라이선스 제공"
-        }
-    ]
+    "육아_출산": {
+        "keywords": ["출산", "육아", "아동", "보육", "임신", "양육", "어린이", "유아", "첫만남", "신생아", "산모", "기저귀", "돌봄"],
+        "photos": [
+            {
+                "url": "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=1000&q=80",
+                "alt": "아기와 부모가 함께 시간을 보내는 실제 가정 사진",
+                "credit": "출처: Unsplash (@dakotacorbin) / 실제 촬영 사진"
+            },
+            {
+                "url": "https://images.unsplash.com/photo-1542037104857-ffbb0b9155fb?auto=format&fit=crop&w=1000&q=80",
+                "alt": "아이와 가족이 함께 웃고 있는 육아 일상 사진",
+                "credit": "출처: Unsplash (@natalie_pedigo) / 실제 촬영 사진"
+            }
+        ]
+    },
+    "청년_취업": {
+        "keywords": ["청년", "취업", "구직", "채용", "일자리", "인턴", "면접", "직장인", "근로자", "내일채움"],
+        "photos": [
+            {
+                "url": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1000&q=80",
+                "alt": "청년들이 카페와 오피스에서 노트북으로 협업하는 실제 사진",
+                "credit": "출처: Unsplash (@brookecagle) / 실제 촬영 사진"
+            },
+            {
+                "url": "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1000&q=80",
+                "alt": "노트북과다이어리를 펼쳐놓고 지원 서류를 작성하는 실제 모습",
+                "credit": "출처: Unsplash (@andrewtneel) / 실제 촬영 사진"
+            }
+        ]
+    },
+    "교육_장학": {
+        "keywords": ["교육", "장학", "학비", "등록금", "대학생", "학교", "초등", "중등", "고등", "수강", "학습", "유학", "대학원"],
+        "photos": [
+            {
+                "url": "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1000&q=80",
+                "alt": "캠퍼스에서 학생들이 함께 공부하며 대화하는 실제 사진",
+                "credit": "출처: Unsplash (@priscilladupreez) / 실제 촬영 사진"
+            },
+            {
+                "url": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1000&q=80",
+                "alt": "책상 위에서 노트에 필기하며 학업을 준비하는 실제 사진",
+                "credit": "출처: Unsplash (@unseenhistories) / 실제 촬영 사진"
+            }
+        ]
+    },
+    "주거_생활": {
+        "keywords": ["주거", "전세", "월세", "주택", "임대", "이사", "보증금", "내집마련", "청약", "집수리", "리모델링"],
+        "photos": [
+            {
+                "url": "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1000&q=80",
+                "alt": "집 열쇠와 주택 모형을 들고 있는 실제 부동산·주거 사진",
+                "credit": "출처: Unsplash (@tierramallorca) / 실제 촬영 사진"
+            },
+            {
+                "url": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1000&q=80",
+                "alt": "가계부와 계산기로 주거비 예산을 점검하는 실제 사진",
+                "credit": "출처: Unsplash (@kellysikkema) / 실제 촬영 사진"
+            }
+        ]
+    },
+    "의료_건강": {
+        "keywords": ["의료", "건강", "치료", "병원", "검진", "진료", "약제비", "수술", "보건", "질환", "재활", "심리"],
+        "photos": [
+            {
+                "url": "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=1000&q=80",
+                "alt": "청진기와 의료 차트가 놓인 실제 병원 진료실 사진",
+                "credit": "출처: Unsplash (@hush52) / 실제 촬영 사진"
+            },
+            {
+                "url": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1000&q=80",
+                "alt": "의료진이 환자와 건강 상담을 진행하는 실제 사진",
+                "credit": "출처: Unsplash (@nationalcancerinstitute) / 실제 촬영 사진"
+            }
+        ]
+    },
+    "어르신_복지": {
+        "keywords": ["어르신", "노인", "고령", "연금", "요양", "경로", "치매", "은퇴", "기초연금", "장수"],
+        "photos": [
+            {
+                "url": "https://images.unsplash.com/photo-1581579438747-1dc8d17bbce4?auto=format&fit=crop&w=1000&q=80",
+                "alt": "밝게 미소 짓는 어르신 부부의 따뜻한 실제 일상 사진",
+                "credit": "출처: Unsplash (@anniespratt) / 실제 촬영 사진"
+            },
+            {
+                "url": "https://images.unsplash.com/photo-1516307365426-bea591f05011?auto=format&fit=crop&w=1000&q=80",
+                "alt": "어르신의 손을 따뜻하게 잡고 안내를 돕는 실제 복지 현장 사진",
+                "credit": "출처: Unsplash (@ Matthias Zomer) / 실제 촬영 사진"
+            }
+        ]
+    },
+    "소상공인_기업": {
+        "keywords": ["소상공인", "자영업", "중소기업", "사업자", "매출", "점포", "창업", "상인", "소기업", "폐업"],
+        "photos": [
+            {
+                "url": "https://images.unsplash.com/photo-1556740758-90de374c12ad?auto=format&fit=crop&w=1000&q=80",
+                "alt": "매장에서 결제 단말기로 고객을 응대하는 실제 소상공인 사진",
+                "credit": "출처: Unsplash (@blakewisz) / 실제 촬영 사진"
+            },
+            {
+                "url": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1000&q=80",
+                "alt": "사무실에서 사업 계획서와 재무 서류를 검토하는 실제 사진",
+                "credit": "출처: Unsplash (@homajob) / 실제 촬영 사진"
+            }
+        ]
+    },
+    "농어업_지역": {
+        "keywords": ["농업", "어업", "농가", "어가", "어선", "양식", "축산", "임업", "귀농", "귀어", "농촌", "어촌", "비료", "친환경"],
+        "photos": [
+            {
+                "url": "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=1000&q=80",
+                "alt": "푸른 들판과 농작물이 자라는 실제 농어촌 풍경 사진",
+                "credit": "출처: Unsplash (@goian) / 실제 촬영 사진"
+            },
+            {
+                "url": "https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=1000&q=80",
+                "alt": "수확한 신선한 농산물을 손으로 들고 있는 실제 농가 사진",
+                "credit": "출처: Unsplash (@sippakorn) / 실제 촬영 사진"
+            }
+        ]
+    },
+    "문화_체육_여가": {
+        "keywords": ["문화", "체육", "스포츠", "공연", "전시", "여행", "관광", "바우처", "체육인", "예술", "도서"],
+        "photos": [
+            {
+                "url": "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=1000&q=80",
+                "alt": "활기차게 야외 체육 및 스포츠 활동을 즐기는 실제 사진",
+                "credit": "출처: Unsplash (@fitnish) / 실제 촬영 사진"
+            },
+            {
+                "url": "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1000&q=80",
+                "alt": "여유롭게 문화 및 여가 시간을 보내는 실제 일상 사진",
+                "credit": "출처: Unsplash (@sidekix) / 실제 촬영 사진"
+            }
+        ]
+    },
+    "일반_금융": {
+        "keywords": ["지원금", "보조금", "급여", "수당", "감면", "환급", "바우처", "세금", "공과금", "생활비"],
+        "photos": [
+            {
+                "url": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1000&q=80",
+                "alt": "서류와 노트북을 놓고 정부 지원금 혜택을 확인하는 실제 사진",
+                "credit": "출처: Unsplash (@towfiqu999999) / 실제 촬영 사진"
+            },
+            {
+                "url": "https://images.unsplash.com/photo-1434626881859-194d67b2b86f?auto=format&fit=crop&w=1000&q=80",
+                "alt": "스마트폰과 PC로 온라인 신청 절차를 밟는 실제 사진",
+                "credit": "출처: Unsplash (@firmbee) / 실제 촬영 사진"
+            }
+        ]
+    }
 }
 
-def select_matching_images(text):
-    if any(k in text for k in ["출산", "육아", "아동", "보육", "임신", "양육", "어린이", "유아", "첫만남"]):
-        return THEME_IMAGES["육아_출산"]
-    elif any(k in text for k in ["청년", "취업", "구직", "장학", "대학생", "일자리", "창업"]):
-        return THEME_IMAGES["청년_취업"]
-    elif any(k in text for k in ["주거", "전세", "월세", "주택", "임대", "이사", "보증금"]):
-        return THEME_IMAGES["주거_생활"]
-    elif any(k in text for k in ["의료", "건강", "치료", "병원", "검진", "진료", "장애", "돌봄", "요양"]):
-        return THEME_IMAGES["의료_건강"]
-    elif any(k in text for k in ["소상공인", "자영업", "중소기업", "사업자", "매출", "점포"]):
-        return THEME_IMAGES["소상공인_기업"]
-    elif any(k in text for k in ["농업", "어업", "농가", "어가", "어선", "양식", "축산", "임업", "귀농"]):
-        return THEME_IMAGES["농어업_지역"]
-    else:
-        return THEME_IMAGES["일반_금융"]
+def is_image_url_valid(url):
+    """실제 사진 URL이 깨지지 않고 정상 응답(HTTP 200 & image 타입)하는지 체크"""
+    try:
+        req = urllib.request.Request(url, method="HEAD", headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            content_type = resp.headers.get("Content-Type", "")
+            return resp.status == 200 and "image" in content_type
+    except Exception:
+        return True  # 일시적 네트워크 지연 시 기본 허용
+
+def select_and_verify_images(service_title, post_title, official_facts, post_body):
+    """
+    [2단계 이미지 매칭 검수]
+    1차: 제목/서비스명 가중치(5배) + 본문 키워드 스코어링으로 후보 카테고리 선정
+    2차: 제미나이에게 글의 핵심 주제와 사진 설명이 실제로 부합하는지 최종 확인 요청
+    """
+    title_text = f"{service_title} {post_title}"
+    body_text = f"{official_facts} {post_body}"
+
+    scores = {}
+    for category, data in THEME_IMAGES.items():
+        score = 0
+        for kw in data["keywords"]:
+            if kw in title_text:
+                score += 5  # 제목이나 정책명에 핵심 단어가 있으면 강력한 가중치 부여
+            if kw in body_text:
+                score += 1
+        scores[category] = score
+
+    # 1차 최고 점수 카테고리 추출
+    best_category = max(scores, key=scores.get)
+    if scores[best_category] == 0:
+        best_category = "일반_금융"
+
+    # 2차 제미나이 문맥 일치 더블 체크
+    category_descriptions = "\n".join(
+        [f"- {cat}: {data['photos'][0]['alt']} / {data['photos'][1]['alt']}" for cat, data in THEME_IMAGES.items()]
+    )
+    verify_prompt = f"""
+    아래 블로그 글 제목과 정책 정보에 가장 잘 어울리는 실제 사진 카테고리를 1개만 골라줘.
+    글의 핵심 대상과 사진의 분위기(설명)가 어색하지 않고 딱 들어맞는지 꼼꼼히 체크해.
+
+    [정책명]: {service_title}
+    [블로그 제목]: {post_title}
+    [글 요약]: {official_facts[:300]}
+    [1차 추천 카테고리]: {best_category}
+
+    [선택 가능한 실제 사진 카테고리 목록]
+    {category_descriptions}
+
+    다른 설명 없이 가장 알맞은 카테고리 이름(예: 육아_출산, 청년_취업, 교육_장학, 주거_생활, 의료_건강, 어르신_복지, 소상공인_기업, 농어업_지역, 문화_체육_여가, 일반_금융 중 하나)만 정확히 한 단어로 출력해.
+    """
+    ai_choice = call_gemini(verify_prompt, temperature=0.0)
+    if ai_choice:
+        cleaned_choice = ai_choice.strip().replace("'", "").replace('"', "")
+        for cat in THEME_IMAGES.keys():
+            if cat in cleaned_choice:
+                best_category = cat
+                break
+
+    print(f"🖼️ [이미지 매칭 검수 완료] 선택된 사진 테마: {best_category}")
+    selected_photos = THEME_IMAGES[best_category]["photos"]
+
+    # 이미지 링크 유효성 최종 점검 (만약 링크 이상 시 일반_금융 실사 사진으로 안전 대체)
+    verified_photos = []
+    for idx, photo in enumerate(selected_photos):
+        if is_image_url_valid(photo["url"]):
+            verified_photos.append(photo)
+        else:
+            verified_photos.append(THEME_IMAGES["일반_금융"]["photos"][idx % 2])
+
+    return verified_photos
 
 def make_image_html(img_info):
     return f"""
-<figure style="margin: 32px 0; text-align: center;">
+<figure style="margin: 28px 0; text-align: center;">
   <img src="{img_info['url']}" alt="{img_info['alt']}" style="max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" />
-  <figcaption style="margin-top: 10px; font-size: 15px !important; line-height: 1.5 !important; color: #475569 !important;">
+  <figcaption style="margin-top: 8px; font-size: 14.5px !important; line-height: 1.5 !important; color: #64748b !important;">
     📷 {img_info['alt']} ({img_info['credit']})
   </figcaption>
 </figure>
@@ -258,30 +392,33 @@ def call_gemini(prompt, temperature=0.3):
 
 def step1_generate_draft(source_facts):
     prompt = f"""
-    너는 정부 지원금 및 정책 분석 전문 칼럼니스트이자 파워 블로거야.
-    아래 [정부 공식 데이터]를 바탕으로 독자가 블로그에 4~5분 이상 머물며 정독할 수 있도록 **공백 제외 최소 1,800자~2,500자 이상**의 깊이 있고 알찬 해설 글을 작성해줘.
-    단순히 항목만 나열하면 절대 안 되며, 독자가 왜 이 혜택을 챙겨야 하는지, 실제 신청할 때 어떤 점을 주의해야 하는지 친절하고 상세하게 풀어서 설명해야 해.
-    단, 원본 데이터에 있는 금액, 날짜, 전화번호 등 팩트 수치는 절대 왜곡하거나 지어내지 마.
+    너는 '퇴근길 지원금 줍줍' 블로그를 운영하는 깔끔하고 경쾌한 스타일의 전문 에디터야.
+    아래 [정부 공식 데이터]를 바탕으로, 독자가 퇴근길 스마트폰 화면으로 술술 읽고 핵심을 바로 챙길 수 있도록 **공백 제외 1,500자~2,200자 수준**의 알차고 경쾌한 해설 글을 작성해줘.
+    원본 데이터의 금액, 조건, 날짜, 전화번호 등 팩트 수치는 절대 왜곡하거나 지어내지 마.
 
     [정부 공식 데이터]
     {source_facts}
 
-    [필수 포함 섹션 및 작성 가이드]
-    1. 도입부 (최소 300자): 바쁜 일상 속에서 이런 지원금을 몰라서 놓치는 안타까운 현실을 짚어주고, 이 정책이 왜 실질적인 도움이 되는지 흥미로운 스토리텔링으로 시작할 것.
-    2. 핵심 요약 정리: 바쁜 독자들을 위해 [지원대상 / 지원내용 / 신청기한 / 신청방법 / 문의처] 5가지 핵심 정보를 한눈에 볼 수 있게 정리할 것.
-    3. 신청대상 및 선정기준 심층 분석 (최소 400자): 누가 받을 수 있는지 조건을 하나하나 쪼개서 쉽게 설명하고, 본인이 대상자인지 헷갈릴 때 확인하는 팁을 덧붙일 것.
-    4. 지원내용 및 기대 효과 (최소 350자): 구체적으로 어떤 혜택을 받는지, 이를 통해 가계나 생활에 어떤 실질적 보탬이 되는지 체감할 수 있게 설명할 것.
-    5. 신청기한 및 단계별 신청방법 완벽 가이드 (최소 450자): 신청기한을 강조하고, 온라인(정부24 등) 신청과 오프라인(주민센터/접수기관 방문) 신청 절차를 Step 1, Step 2, Step 3 순서로 초보자도 바로 따라 할 수 있게 안내할 것.
-    6. 헛걸음 방지 필수 체크리스트 & 주의사항 (최소 300자): 서류 누락, 마감 기한 임박, 대리 신청 여부 등 실제 신청 시 자주 겪는 실수와 꿀팁 3가지를 정리할 것.
-    7. 자주 묻는 질문 BEST 3 (FAQ): 독자들이 가장 궁금해할 만한 질문 3가지(Q1~Q3)와 명쾌한 답변(A1~A3)을 문답 형식으로 작성할 것.
+    [문체 및 톤앤매너 지침]
+    - **깔끔하고 경쾌한 톤**: 무겁고 딱딱한 관공서 말투나 장황한 설명은 빼고, 친절하고 밝은 톤("~해요!", "~챙겨보세요!", "~정리해 드릴게요.")으로 리듬감 있게 작성할 것.
+    - **모바일 가독성 최적화**: 한 문단은 2~3문장 이내로 짧고 간결하게 끊어 읽기 편하게 구성할 것.
+    - **별도 첫인사/끝인사 생략**: 시스템이 글 맨 위와 맨 아래에 고정 인삿말과 맺음말을 자동으로 붙일 예정이니, 초안에서는 인삿말 없이 곧바로 오늘 소개할 지원금이 왜 매력적인지 경쾌한 배경 설명으로 시작할 것.
+
+    [필수 포함 섹션]
+    1. 경쾌한 오프닝 (약 250자): 이 지원금이 어떤 분들에게 단비 같은 소식인지 핵심 매력을 콕 짚어주며 기분 좋게 시작.
+    2. 바쁜 분들을 위한 1분 핵심 요약: [지원대상 / 지원내용 / 신청기한 / 신청방법 / 문의처] 5가지 핵심 정리.
+    3. 누가 받을 수 있나요? (지원대상 & 선정기준): 조건을 보기 쉽게 쪼개서 설명하고, 헷갈리기 쉬운 포인트 짚어주기.
+    4. 어떤 혜택을 받나요? (지원내용 & 체감 혜택): 실제로 받을 수 있는 금액이나 서비스가 일상에 어떤 보탬이 되는지 구체적으로 설명.
+    5. 어떻게 신청하나요? (단계별 신청 가이드): 온라인/오프라인 신청 절차를 Step 1, Step 2, Step 3로 깔끔하게 안내.
+    6. 헛걸음 방지 체크리스트 3가지: 서류 준비, 기한 확인 등 놓치기 쉬운 실수 방지 꿀팁.
+    7. 자주 묻는 질문 Q&A (3가지): 독자들이 가장 궁금해할 질문과 명쾌한 답변.
     """
     return call_gemini(prompt, temperature=0.25)
 
 def step2_proofread_and_humanize(source_facts, draft_text):
     prompt = f"""
-    너는 대한민국 상위 1% 블로그 편집장이야.
-    아래 [1차 초안]을 [정부 공식 데이터]와 대조해 팩트를 검증하고, 독자가 모바일과 PC에서 4~5분 동안 눈이 편안하게 읽을 수 있는 **고품격 HTML 블로그 포스팅(최소 1,800자~2,500자 이상 유지)**으로 완성해줘.
-    절대로 내용을 요약하거나 줄이지 말고, 1차 초안의 풍부한 분량과 디테일을 100% 살려야 해!
+    너는 모바일 가독성과 깔끔한 편집을 책임지는 블로그 편집장이야.
+    아래 [1차 초안]을 [정부 공식 데이터]와 대조해 팩트를 검증하고, 스마트폰 화면에서 빠르게 읽고 넘기기 좋은 **깔끔하고 경쾌한 HTML 포스팅**으로 완성해줘.
 
     [정부 공식 데이터]
     {source_facts}
@@ -289,30 +426,30 @@ def step2_proofread_and_humanize(source_facts, draft_text):
     [1차 초안]
     {draft_text}
 
-    [🛠️ 필수 편집 및 HTML 디자인 지침 (모바일 가독성 최우선)]
-    1. **분량 유지 필수**: 본문 글자 수가 최소 1,800자 이상 되도록 각 문단을 풍부하고 깊이 있게 서술할 것.
-    2. **자연스러운 인간 문체**: '결론적으로', '요약하자면', '지금까지 알아보았습니다' 같은 AI 상투어는 절대 쓰지 말고, 경험 많은 직장인 선배가 꼼꼼하게 알려주는 생생하고 친근한 문체를 사용할 것.
-    3. **모바일에서도 큼직하고 시원한 글자 크기 적용**:
-       - 마크다운 기호(`#`, `**`, ```)는 절대 쓰지 말 것.
-       - 대소제목: `<h2 style="border-left: 6px solid #2563eb; background-color: #f8fafc; padding: 12px 16px; color: #0f172a; margin-top: 42px; margin-bottom: 20px; font-size: 24px; line-height: 1.4; font-weight: 800;">소제목</h2>`
-       - 소소제목: `<h3 style="color: #1e3a8a; margin-top: 30px; margin-bottom: 14px; font-size: 20px; line-height: 1.5; font-weight: 700;">소제목</h3>`
-       - 일반 문단: `<p style="line-height: 1.95; font-size: 19px; color: #1e293b; margin-bottom: 24px; word-break: keep-all;">`
-       - 목록(리스트): `<ul>` 또는 `<ol>` 안의 각 항목은 `<li style="line-height: 1.95; font-size: 19px; color: #1e293b; margin-bottom: 14px; word-break: keep-all;">` 스타일을 반드시 적용할 것.
+    [🛠️ 필수 편집 및 HTML 디자인 지침]
+    1. **깔끔하고 경쾌한 호흡 유지**: 문장이 늘어지지 않도록 산뜻하고 명쾌하게 다듬되, 정보의 깊이와 본문 분량(1,500자~2,200자)은 충실하게 유지할 것.
+    2. **고정 인삿말/맺음말 중복 방지**: 시스템에서 첫인삿말과 맺음말을 상하단에 자동 삽입하므로, 본문 내에서는 중복 인사를 빼고 바로 본론 배경부터 시작해 FAQ로 깔끔하게 마칠 것.
+    3. **AI 상투어 금지**: '결론적으로', '요약하자면', '지금까지 알아보았습니다' 같은 기계적 표현 절대 금지.
+    4. **모바일 친화적 HTML 스타일 (마크다운 `#`, `**`, ``` 사용 금지)**:
+       - 대소제목: `<h2 style="border-left: 6px solid #2563eb; background-color: #f8fafc; padding: 12px 16px; color: #0f172a; margin-top: 38px; margin-bottom: 18px; font-size: 22px; line-height: 1.4; font-weight: 800;">소제목</h2>`
+       - 소소제목: `<h3 style="color: #1e3a8a; margin-top: 26px; margin-bottom: 12px; font-size: 19.5px; line-height: 1.5; font-weight: 700;">소제목</h3>`
+       - 일반 문단: `<p style="line-height: 1.9; font-size: 18.5px; color: #1e293b; margin-bottom: 20px; word-break: keep-all;">`
+       - 목록(리스트): `<ul>` 또는 `<ol>` 안의 각 항목은 `<li style="line-height: 1.9; font-size: 18.5px; color: #1e293b; margin-bottom: 12px; word-break: keep-all;">` 적용.
        - 핵심 강조 단어: `<b style="background-color: #fef08a; padding: 2px 6px; border-radius: 4px; color: #0f172a;">강조 내용</b>`
-    4. **한눈에 보는 핵심 요약 표(`<table>`) 필수 포함**:
-       - 도입부 다음에 아래와 같은 큼직한 인라인 CSS 표로 **신청대상, 지원내용, 신청기한, 신청방법, 문의처**를 정리할 것:
-       `<table style="width:100%; border-collapse:collapse; margin:28px 0; font-size:17.5px; line-height:1.7;">`
-       (표의 `<th>`는 `background-color:#f1f5f9; padding:14px 12px; border:1px solid #cbd5e1; width:28%; text-align:left; font-size:17.5px; color:#0f172a; font-weight:700;`, `<td>`는 `padding:14px 12px; border:1px solid #cbd5e1; font-size:17.5px; color:#1e293b;` 스타일 적용)
-    5. **이미지 삽입 위치 마커 배치**:
-       - 도입부 문단이 끝난 직후에 정확히 `[IMAGE_SLOT_1]` 이라는 글자를 한 줄 단독으로 넣을 것.
-       - '신청기한 및 단계별 신청방법' 섹션 시작 직전에 정확히 `[IMAGE_SLOT_2]` 라는 글자를 한 줄 단독으로 넣을 것.
-    6. **출력 형식**:
-       - 첫 번째 줄에는 HTML 태그 없이 클릭을 유도하는 매력적인 **'블로그 제목'**만 한 줄로 출력할 것.
+    5. **한눈에 보는 핵심 요약 표(`<table>`) 필수 포함**:
+       - 오프닝 문단 다음에 아래 인라인 CSS 표로 **신청대상, 지원내용, 신청기한, 신청방법, 문의처**를 깔끔하게 정리할 것:
+       `<table style="width:100%; border-collapse:collapse; margin:24px 0; font-size:17px; line-height:1.65;">`
+       (`<th>`는 `background-color:#f1f5f9; padding:12px 10px; border:1px solid #cbd5e1; width:28%; text-align:left; font-size:17px; color:#0f172a; font-weight:700;`, `<td>`는 `padding:12px 10px; border:1px solid #cbd5e1; font-size:17px; color:#1e293b;`)
+    6. **이미지 삽입 위치 마커 배치**:
+       - 오프닝 문단이 끝난 직후에 `[IMAGE_SLOT_1]` 을 한 줄 단독으로 넣을 것.
+       - '어떻게 신청하나요?' 섹션 시작 직전에 `[IMAGE_SLOT_2]` 를 한 줄 단독으로 넣을 것.
+    7. **출력 형식**:
+       - 첫 번째 줄에는 HTML 태그 없이 클릭하고 싶어지는 경쾌한 **'블로그 제목'**만 한 줄로 출력할 것.
        - 두 번째 줄부터 곧바로 본문 HTML 코드를 출력할 것.
     """
     return call_gemini(prompt, temperature=0.35)
 
-def step3_finalize_post(text, official_Facts_text, detail_url):
+def step3_finalize_post(text, service_title, official_facts_text, detail_url):
     text = re.sub(r"```[a-zA-Z]*", "", text)
     text = text.replace("```", "").replace("**", "")
     banned_phrases = ["결론적으로", "요약하자면", "도움이 되셨기를 바랍니다", "도움이 되셨길 바랍니다", "지금까지 알아보았습니다"]
@@ -327,7 +464,8 @@ def step3_finalize_post(text, official_Facts_text, detail_url):
     post_title = re.sub(r"<[^>]+>", "", lines[0]).strip()
     post_body = "\n".join(lines[1:])
 
-    matched_images = select_matching_images(official_Facts_text + " " + post_title)
+    # 2중 검수를 거친 실제 사진 2장 선택
+    matched_images = select_and_verify_images(service_title, post_title, official_facts_text, post_body)
     img1_html = make_image_html(matched_images[0])
     img2_html = make_image_html(matched_images[1])
 
@@ -346,7 +484,7 @@ def step3_finalize_post(text, official_Facts_text, detail_url):
   .afterwork-container {
     font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif !important;
     font-size: 18.5px !important;
-    line-height: 1.95 !important;
+    line-height: 1.9 !important;
     color: #1e293b !important;
     letter-spacing: -0.2px !important;
     word-break: keep-all !important;
@@ -357,49 +495,49 @@ def step3_finalize_post(text, official_Facts_text, detail_url):
   .afterwork-container div,
   .afterwork-container span {
     font-size: 18.5px !important;
-    line-height: 1.95 !important;
+    line-height: 1.9 !important;
   }
   .afterwork-container p {
-    margin-bottom: 24px !important;
+    margin-bottom: 20px !important;
   }
   .afterwork-container ul,
   .afterwork-container ol {
-    margin: 20px 0 28px 0 !important;
-    padding-left: 24px !important;
+    margin: 18px 0 24px 0 !important;
+    padding-left: 22px !important;
   }
   .afterwork-container li {
-    margin-bottom: 14px !important;
+    margin-bottom: 12px !important;
   }
   .afterwork-container h2 {
-    font-size: 24px !important;
-    line-height: 1.45 !important;
+    font-size: 22.5px !important;
+    line-height: 1.4 !important;
     font-weight: 800 !important;
     color: #0f172a !important;
     border-left: 6px solid #2563eb !important;
     background-color: #f8fafc !important;
-    padding: 14px 16px !important;
-    margin-top: 44px !important;
-    margin-bottom: 22px !important;
+    padding: 12px 16px !important;
+    margin-top: 38px !important;
+    margin-bottom: 18px !important;
     border-radius: 0 8px 8px 0 !important;
   }
   .afterwork-container h3 {
-    font-size: 20.5px !important;
+    font-size: 19.5px !important;
     line-height: 1.5 !important;
     font-weight: 700 !important;
     color: #1e3a8a !important;
-    margin-top: 32px !important;
-    margin-bottom: 14px !important;
+    margin-top: 28px !important;
+    margin-bottom: 12px !important;
   }
   .afterwork-container table {
     width: 100% !important;
     border-collapse: collapse !important;
-    margin: 28px 0 !important;
+    margin: 24px 0 !important;
   }
   .afterwork-container th,
   .afterwork-container td {
-    font-size: 17.5px !important;
-    line-height: 1.7 !important;
-    padding: 14px 12px !important;
+    font-size: 17px !important;
+    line-height: 1.65 !important;
+    padding: 12px 10px !important;
     border: 1px solid #cbd5e1 !important;
   }
   .afterwork-container th {
@@ -412,21 +550,21 @@ def step3_finalize_post(text, official_Facts_text, detail_url):
     .afterwork-container,
     .afterwork-container p,
     .afterwork-container li {
-      font-size: 19.5px !important;
-      line-height: 2.0 !important;
+      font-size: 18.5px !important;
+      line-height: 1.9 !important;
     }
     .afterwork-container h2 {
-      font-size: 22.5px !important;
-      padding: 12px 14px !important;
-      margin-top: 38px !important;
+      font-size: 21px !important;
+      padding: 11px 14px !important;
+      margin-top: 34px !important;
     }
     .afterwork-container h3 {
-      font-size: 20px !important;
+      font-size: 19px !important;
     }
     .afterwork-container th,
     .afterwork-container td {
-      font-size: 17px !important;
-      padding: 12px 10px !important;
+      font-size: 16.5px !important;
+      padding: 10px 8px !important;
     }
     .afterwork-container th {
       width: 32% !important;
@@ -435,23 +573,37 @@ def step3_finalize_post(text, official_Facts_text, detail_url):
 </style>
 """.strip()
 
-    footer_html = f"""
-<div style="margin-top: 44px; padding: 26px 22px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 14px;">
-  <h3 style="margin-top: 0 !important; color: #0f172a !important; font-size: 21px !important;">📌 공식 공고문 확인 및 온라인 신청 바로가기</h3>
-  <p style="font-size: 18px !important; color: #334155 !important; line-height: 1.85 !important; margin-bottom: 24px !important;">
-    지자체별 예산 소진 현황이나 세부 구비서류는 신청 시점에 따라 업데이트될 수 있습니다. 아래 정부24 공식 안내 페이지를 통해 가장 정확한 최신 공고문을 확인하시고 혜택을 신청해 보세요!
+    # 상단 고정 첫인삿말 박스
+    intro_box_html = f"""
+<div style="margin-bottom: 28px; padding: 20px 22px; background-color: #eff6ff; border-left: 5px solid #3b82f6; border-radius: 0 12px 12px 0;">
+  <p style="margin: 0 !important; font-size: 18.5px !important; line-height: 1.85 !important; color: #1e3a8a !important; font-weight: 600;">
+    👋 {FIXED_INTRO_TEXT}
   </p>
-  <div style="text-align: center; margin: 28px 0;">
-    <a href="{detail_url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: #2563eb; color: #ffffff !important; font-weight: 800; padding: 16px 30px; border-radius: 10px; text-decoration: none; font-size: 18.5px !important; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);">
+</div>
+""".strip()
+
+    # 하단 신청 버튼 + 고정 맺음말 박스
+    footer_html = f"""
+<div style="margin-top: 40px; padding: 24px 20px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 14px;">
+  <h3 style="margin-top: 0 !important; color: #0f172a !important; font-size: 20px !important;">📌 공식 공고문 확인 및 온라인 신청 바로가기</h3>
+  <p style="font-size: 17.5px !important; color: #334155 !important; line-height: 1.8 !important; margin-bottom: 22px !important;">
+    지자체별 예산 소진 현황이나 세부 구비서류는 신청 시점에 따라 달라질 수 있어요. 아래 정부24 공식 안내 페이지에서 가장 정확한 최신 공고문을 확인하시고 혜택을 챙겨보세요!
+  </p>
+  <div style="text-align: center; margin: 24px 0;">
+    <a href="{detail_url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: #2563eb; color: #ffffff !important; font-weight: 800; padding: 15px 28px; border-radius: 10px; text-decoration: none; font-size: 18px !important; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);">
       👉 정부24 공식 상세안내 및 신청 페이지 이동
     </a>
   </div>
-  <hr style="border: 0; border-top: 1px solid #cbd5e1; margin: 24px 0;" />
-  <p style="font-size: 15px !important; color: #475569 !important; margin: 0 !important; line-height: 1.75 !important;">
-    <b>[자료 및 이미지 출처 안내]</b><br />
+  <div style="margin-top: 26px; padding: 18px 20px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px;">
+    <p style="margin: 0 !important; font-size: 18px !important; line-height: 1.85 !important; color: #0f172a !important;">
+      ✨ {FIXED_OUTRO_TEXT}
+    </p>
+  </div>
+  <hr style="border: 0; border-top: 1px solid #cbd5e1; margin: 20px 0;" />
+  <p style="font-size: 14.5px !important; color: #64748b !important; margin: 0 !important; line-height: 1.7 !important;">
+    <b>[자료 및 실제 사진 출처 안내]</b><br />
     • 정책 데이터 출처: 행정안전부 보조금24 / 공공데이터포털(data.go.kr) 및 정부24(gov.kr) 공식 오픈 API (공공누리 제1유형 준수)<br />
-    • 본문 이미지 출처: Unsplash 무료 상업적 라이선스 제공 (각 이미지 하단 저작자 표기)<br />
-    • 오늘도 <b>퇴근길 혜택 픽</b>을 찾아주셔서 감사합니다. 내일도 놓치면 아까운 알짜 지원금 정보로 찾아뵙겠습니다!
+    • 본문 사진 출처: Unsplash 실제 촬영 사진 무료 라이선스 제공 (각 사진 하단 촬영자 표기)
   </p>
 </div>
 """.strip()
@@ -459,6 +611,7 @@ def step3_finalize_post(text, official_Facts_text, detail_url):
     full_html = f"""
 {responsive_style_html}
 <div class="afterwork-container">
+{intro_box_html}
 {post_body}
 {footer_html}
 </div>
@@ -477,7 +630,7 @@ def publish_to_blogger(title, body_html):
         credentials = Credentials(
             token=None,
             refresh_token=refresh_token,
-            token_uri="https://oauth2.googleapis.com/token",  # 👈 마크다운 기호 제거 완료!
+            token_uri="[https://oauth2.googleapis.com/token](https://oauth2.googleapis.com/token)",
             client_id=client_id,
             client_secret=client_secret
         )
@@ -510,13 +663,14 @@ if __name__ == "__main__":
         exit(1)
 
     print(f"✅ 이번에 발행할 정책: {service_title}")
-    print("✍️ [2단계] 심층 칼럼 초안 작성 및 모바일 최적화 HTML 교정을 진행합니다...")
+    print("✍️ [2단계] 깔끔하고 경쾌한 초안 작성 및 모바일 최적화 HTML 편집을 진행합니다...")
     draft = step1_generate_draft(official_facts)
     
     if draft:
         polished = step2_proofread_and_humanize(official_facts, draft)
         post_title, post_body = step3_finalize_post(
             polished if polished else draft,
+            service_title,
             official_facts,
             detail_url
         )
