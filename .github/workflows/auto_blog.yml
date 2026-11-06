@@ -2,7 +2,7 @@ name: Government Subsidy Auto Bot
 
 on:
   schedule:
-    # 한국 시간 오후 4시 15분(UTC 07:15)에 시작 -> 깃허브 대기열 감안 시 늦어도 오후 5시 30분 이전에 발행 완료
+    # 한국 시간 오후 4시 15분 실행 (깃허브 대기열 지연 감안 시 오후 4시 20분 ~ 5시 20분 사이 무조건 발행 완료)
     - cron: '15 7 * * *'
   workflow_dispatch:
 
